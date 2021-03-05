@@ -3,11 +3,9 @@ const http = require('http').createServer(app)
 const port = process.env.PORT || 4000;
 const io = require('socket.io')(http, {
     cors: {
-        //origin: "http://localhost:3000",
-        origin: "https://world-dom-backend.herokuapp.com/" + port,
-        methods: ["GET", "POST"]
+        origin: '*',
     }
-})
+});
 //const io = require('socket.io')(http)
 const {
     userJoin,
