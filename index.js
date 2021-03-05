@@ -1,11 +1,13 @@
 const app = require('express')()
 const http = require('http').createServer(app)
-const io = require('socket.io')(http, {
-    cors: {
-        origin: "http://localhost:3000",
-        methods: ["GET", "POST"]
-    }
-})
+//const io = require('socket.io')(http, {
+//    cors: {
+//        origin: "http://localhost:3000",
+//        methods: ["GET", "POST"]
+//    }
+//})
+const io = require('socket.io')(http)
+const port = process.env.PORT || 4000;
 const {
     userJoin,
     getCurrentUser,
@@ -228,8 +230,8 @@ io.on('connection', socket => {
     })
 })
 
-http.listen(4000, function() {
-    console.log('listening on port 4000')
+http.listen(port, function() {
+    console.log('listening on port ' + port)
 })
 
 function leave(socket)
