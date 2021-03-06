@@ -32,10 +32,10 @@ const {
 
 io.on('connection', socket => {
     // Chat Message
-    socket.on('message', ({m_room, m_name, m_message}) => {
+    socket.on('client-message', ({m_room, m_name, m_message}) => {
         console.log("NEW MSG room: " + m_room + " name: " + m_name + " msg: " + m_message)
         //could make sure room exists
-        io.to(m_room).emit('message', {m_name, m_message})
+        io.to(m_room).emit('message', {m_name, m_message, fromID:socket.id})
     })
 
     // Join Room
@@ -75,7 +75,7 @@ io.on('connection', socket => {
     // Host Start Game
     socket.on('host-start-game', ({room}) => {
         const usersInRoom = getUsersInRoom(room);
-        if(usersInRoom.length > 0) // make sure there is more than one player to start the game
+        if(usersInRoom.length > 1) // make sure there is more than one player to start the game
         {
             setRoomStartGame(room)
             const room_data = getRoomData(room);
@@ -157,56 +157,7 @@ io.on('connection', socket => {
                 //update user data
                 io.to(room).emit('room-users', {users: getUsersInRoom(room)} );
 
-                // check win condition
-                let losing_users = []
-                let surv_users = [];
-                for(var user of usersInRoom)
-                {
-                    //ensure they are still in the game
-                    let i = room_data.turn_order.findIndex(ID => ID === user.id);
-                    if(i !== -1)
-                    {
-                        let has_caps_left = false;
-                        for(var cap of user.caps)
-                        {
-                            if(!cap.discovered)
-                            {
-                                caps_left += 1;
-                            }
-                            if(has_caps_left)
-                            {
-                                surv_users.push(user);
-                            }
-                            else
-                            {
-                                losing_users.push(user);
-                            }
-                        }
-                    }
-                }
-
-                if(surv_users.length === 0)
-                {
-                    // Send remaining players tie message
-                    for(let userID of room_data.turn_order)
-                    {
-                        io.to(userID).emit('tie' );
-                    }
-                }
-                else // Not a tie
-                {
-                    // let the losers know they lost
-                    for(let user of losing_users)
-                    {
-                        io.to(user.id).emit('lose' );
-                        removeIDFromTurnOrder(user.room, userID);
-                    }
-                    // If we have a winner let them know
-                    if(surv_users.length === 1)
-                    {
-                        io.to(surv_users[0].id).emit('win' );
-                    }
-                }
+                checkWinCondition(room);
             }
         
             // update bombs and start next turn
@@ -235,18 +186,84 @@ http.listen(port, function() {
 
 function leave(socket)
 {
-    const user = userLeave(socket.id);
-    removeIDFromTurnOrder(user.room, socket.id)    
+    const user = userLeave(socket.id);  
     if(user) {
+        removeIDFromTurnOrder(user.room, socket.id)  
         socket.leave(user.room);
         const usersInRoom = getUsersInRoom(user.room);
         if(usersInRoom.length != 0)
         {
             io.to(user.room).emit('room-users', {users: usersInRoom} );
+
+            checkWinCondition(user.room);
         }
         else // no more users
         {
             const room = destroyRoom(user.room);
+        }
+    }
+}
+
+function checkWinCondition(room)
+{
+    //const usersInRoom = getUsersInRoom(room);
+    const room_data = getRoomData(room);
+    if(room_data && room_data.turn_order.length > 0)
+    {
+        let losing_users = []
+        let surv_users = [];
+        for(let userID of room_data.turn_order)
+        {
+            let user = getCurrentUser(userID)
+            //ensure they are still in the game
+            if(user)
+            {
+                let i = room_data.turn_order.findIndex(ID => ID === user.id);
+                if(i !== -1)
+                {
+                    let has_caps_left = false;
+                    for(var cap of user.caps)
+                    {
+                        if(!cap.discovered)
+                        {
+                            has_caps_left = true;
+                            break;
+                        }
+                    }
+                    if(has_caps_left)
+                    {
+                        surv_users.push(user);
+                    }
+                    else
+                    {
+                        losing_users.push(user);
+                    }
+                }
+            }
+        }
+
+        if(surv_users.length === 0) // No survivors, TIE
+        {
+            // Send remaining players tie message
+            for(let userID of room_data.turn_order)
+            {
+                io.to(userID).emit('tie' );
+            }
+        }
+        else // Not a tie
+        {
+            // let the losers know they lost
+            for(let user of losing_users)
+            {
+                io.to(user.id).emit('lose' );
+                removeIDFromTurnOrder(user.room, user.id);
+            }
+            // If we have a winner let them know
+            if(surv_users.length === 1)
+            {
+                io.to(surv_users[0].id).emit('win' );
+                removeIDFromTurnOrder(surv_users[0].room, surv_users[0].id);
+            }
         }
     }
 }

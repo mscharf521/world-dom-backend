@@ -7,7 +7,7 @@ function addRoom( room_name, password )
     {
         return null;
     }
-    const room = { room_name, password, hasStarted:false, num_caps:1, bombs:[], turn_order: [], current_turn_index:0 };
+    const room = { room_name, password, hasStarted:false, num_caps:3, bombs:[], turn_order: [], current_turn_index:0 };
     rooms.push(room);
     return room;
 }
@@ -96,14 +96,19 @@ function addBombToRoom(room_name, bomb)
 
 function removeIDFromTurnOrder(room_name, userID)
 {
-  console.log("removing userID: " + userID + " from room: " + room_name);
+  console.log("removing from turn order userID: " + userID + " from room: " + room_name);
   const room_idx = rooms.findIndex(room => room.room_name === room_name);
 
   if (room_idx !== -1) {
-    const id_idx = rooms[room_idx].turn_order.findIndex(user => user.id === userID)
+    const id_idx = rooms[room_idx].turn_order.findIndex(ID => ID === userID)
     if(id_idx !== -1)
     {
       rooms[room_idx].turn_order.splice(id_idx, 1);
+      console.log("turn order: ")
+      for(let id of rooms[room_idx].turn_order)
+      {
+        console.log(id)
+      }
     }
   }
 }
